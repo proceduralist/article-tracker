@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RadioGraphics Top 10 Articles Tracker</title>
+  <title>RadioGraphics Curriculum Tracker with Supabase</title>
+  <!-- Supabase JS Client library -->
+  <script src="[link removed]"></script>
   <style>
     :root {
       --primary: #1a73e8;
@@ -12,6 +14,7 @@
       --text: #202124;
       --border: #dadce0;
       --success: #34a853;
+      --danger: #ea4335;
     }
 
     body {
@@ -27,8 +30,55 @@
       margin: 0 auto;
     }
 
-    h1, h2 {
-      color: var(--text);
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    /* Auth Box Styles */
+    .auth-bar {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 15px 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .auth-bar input {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn-secondary {
+      background: #5f6368;
+    }
+
+    .btn-danger {
+      background: var(--danger);
     }
 
     /* Dashboard Styles */
@@ -154,14 +204,36 @@
       background: #e8f0fe;
       color: var(--primary);
     }
+
+    #auth-status {
+      font-size: 14px;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>RadioGraphics Curriculum Tracker</h1>
+  <header>
+    <h1>RadioGraphics Curriculum Tracker</h1>
+    
+    <!-- Authentication Panel -->
+    <div class="auth-bar">
+      <div id="logged-out-view" style="display: flex; gap: 10px; align-items: center;">
+        <input type="email" id="auth-email" placeholder="Email" />
+        <input type="password" id="auth-password" placeholder="Password" />
+        <button class="btn" onclick="handleSignIn()">Sign In</button>
+        <button class="btn btn-secondary" onclick="handleSignUp()">Sign Up</button>
+      </div>
 
-  <!-- Dashboard Section -->
+      <div id="logged-in-view" style="display: none; gap: 10px; align-items: center;">
+        <span id="auth-status"></span>
+        <button class="btn btn-danger" onclick="handleSignOut()">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Progress Dashboard Section -->
   <h2>Progress Dashboard</h2>
   <div class="dashboard">
     <div class="card">
@@ -183,7 +255,7 @@
     </div>
   </div>
 
-  <!-- Specialty Dashboard breakdown -->
+  <!-- Specialty Dashboard Breakdown -->
   <div class="card" style="margin-bottom: 25px;">
     <h3>Specialty Progress</h3>
     <div id="specialty-progress-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
@@ -250,49 +322,127 @@
 </div>
 
 <script>
-  // Dataset extracted directly from the spreadsheet
+  // 1. SUPABASE CONFIGURATION
+  // Replace these with your project values from the Supabase Dashboard
+  const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
+  const SUPABASE_ANON_KEY = 'https://lbofepjofqlmoiaqwxha.supabase.co/rest/v1/';
+  
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Article Dataset
   const articlesData = [
-    // Breast Imaging
     { id: 1, specialty: "Breast Imaging", pgy: "Resident Year 1", difficulty: "Basic", title: "Digital Breast Tomosynthesis: Physics, Artifacts, and Quality Control Considerations", authors: "Nikki Tirada ... Thomas Ernst", year: 2019, link: "[link removed]" },
     { id: 2, specialty: "Breast Imaging", pgy: "Resident Year 1", difficulty: "Basic", title: "BI-RADS Terminology for Mammography Reports: What Residents Need to Know", authors: "Karina Pesce ... Andrea Cernadas", year: 2019, link: "[link removed]" },
     { id: 3, specialty: "Breast Imaging", pgy: "Resident Year 1", difficulty: "Intermediate", title: "Genetic Testing and Screening Recommendations for Patients with Hereditary Breast Cancer", authors: "Puja P. Bharucha ... Nikki P. Tirada", year: 2020, link: "[link removed]" },
     { id: 4, specialty: "Breast Imaging", pgy: "Resident Year 2", difficulty: "Basic", title: "Case-based Review of Subtle Signs of Breast Cancer at Mammography", authors: "Monica M. Sheth ... Suzanne E. McElligott", year: 2019, link: "[link removed]" },
     { id: 5, specialty: "Breast Imaging", pgy: "Resident Year 3", difficulty: "Basic", title: "Cystic Breast Lesions: Diagnostic Approach and US Assessment", authors: "Hyo Soon Lim ... Suk Hee Heo", year: 2025, link: "[link removed]" },
     { id: 6, specialty: "Breast Imaging", pgy: "Fellows", difficulty: "N/A", title: "Abbreviated and Ultrafast Breast MRI in Clinical Practice", authors: "Yiming Gao ... Samantha L. Heller", year: 2020, link: "[link removed]" },
-
-    // Cardiac
     { id: 7, specialty: "Cardiac", pgy: "Resident Year 1", difficulty: "Basic", title: "Infectious Diseases of the Heart: Pathophysiology, Clinical and Imaging Overview", authors: "Horacio Murillo ... Ameya Jagdish Baxi", year: 2016, link: "[link removed]" },
     { id: 8, specialty: "Cardiac", pgy: "Resident Year 1", difficulty: "Intermediate", title: "CT of the Difficult Acute Aortic Syndrome", authors: "Kacie L. Steinbrecher ... Constantine A. Raptis", year: 2021, link: "[link removed]" },
     { id: 9, specialty: "Cardiac", pgy: "Resident Year 2", difficulty: "Basic", title: "Artifacts at Cardiac CT: Physics and Solutions", authors: "Kevin Kalisz ... Prabhakar Rajiah", year: 2016, link: "[link removed]" },
     { id: 10, specialty: "Cardiac", pgy: "Resident Year 3", difficulty: "Basic", title: "Cardiac MRI in Patients with Acute Chest Pain", authors: "Jordi Broncano ... Antonio Luna", year: 2020, link: "[link removed]" },
-
-    // Emergency
     { id: 11, specialty: "Emergency", pgy: "Resident Year 1", difficulty: "Basic", title: "Acute Headache in the Emergency Setting", authors: "Melike Guryildirim ... Mehmet Kocak", year: 2019, link: "[link removed]" },
     { id: 12, specialty: "Emergency", pgy: "Resident Year 1", difficulty: "Intermediate", title: "Small Bowel Obstruction: What to Look For", authors: "Ana Catarina Silva ... Luis S Guimaraes", year: 2009, link: "[link removed]" },
-
-    // Gastrointestinal
     { id: 13, specialty: "Gastrointestinal", pgy: "Resident Year 1", difficulty: "Basic", title: "Contrast Enema Examination: Technique and Essential Findings", authors: "Rachel Bass ... Jessica G. Zarzour", year: 2018, link: "[link removed]" },
     { id: 14, specialty: "Gastrointestinal", pgy: "Resident Year 2", difficulty: "Basic", title: "Acute Pancreatitis: Clinical and Morphologic Classification", authors: "María G. Gracia Muñoz ... Yashant Aswani", year: 2025, link: "[link removed]" },
-
-    // Genitourinary
     { id: 15, specialty: "Genitourinary", pgy: "Resident Year 1", difficulty: "Basic", title: "A Practical Guide to Genitourinary Trauma", authors: "Cristyano Leite ... Natally Horvat", year: 2021, link: "[link removed]" },
     { id: 16, specialty: "Genitourinary", pgy: "Resident Year 3", difficulty: "Intermediate", title: "PI-RADS Version 2: A Pictorial Update", authors: "Andrei S. Purysko ... Katarzyna J. Macura", year: 2016, link: "[link removed]" },
-
-    // Gynecologic
     { id: 17, specialty: "Gynecologic", pgy: "Resident Year 1", difficulty: "Basic", title: "Adnexal Torsion: Review of Radiologic Appearances", authors: "M. Taufiq Dawood ... Victoria R. Stewart", year: 2021, link: "[link removed]" },
-
-    // Interventional and Vascular
     { id: 18, specialty: "Interventional and Vascular", pgy: "Resident Year 1", difficulty: "Basic", title: "Effective Use of Accessory Radiation Shielding Devices in Fluoroscopy", authors: "Daniel L. Miller ... Mark D. Hindal", year: 2021, link: "[link removed]" }
   ];
 
-  // Local storage management for completed state
-  let completedArticles = JSON.parse(localStorage.getItem('completedArticles') || '{}');
+  let completedArticles = {};
+  let currentUser = null;
 
-  function saveProgress() {
-    localStorage.setItem('completedArticles', JSON.stringify(completedArticles));
+  // 2. AUTHENTICATION HANDLERS
+  async function handleSignUp() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) alert(error.message);
+    else alert('Signup successful! Check your email to confirm your account or sign in.');
   }
 
-  // Populate Filter Dropdowns
+  async function handleSignIn() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) alert(error.message);
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+  }
+
+  // Monitor auth state changes
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (session) {
+      currentUser = session.user;
+      document.getElementById('logged-out-view').style.display = 'none';
+      document.getElementById('logged-in-view').style.display = 'flex';
+      document.getElementById('auth-status').textContent = `Signed in as ${currentUser.email}`;
+      await fetchUserProgress();
+    } else {
+      currentUser = null;
+      completedArticles = {};
+      document.getElementById('logged-out-view').style.display = 'flex';
+      document.getElementById('logged-in-view').style.display = 'none';
+      renderTable();
+      updateDashboard();
+    }
+  });
+
+  // 3. DATABASE OPERATIONS
+  async function fetchUserProgress() {
+    if (!currentUser) return;
+    const { data, error } = await supabase
+      .from('user_progress')
+      .select('article_id')
+      .eq('user_id', currentUser.id);
+
+    if (error) {
+      console.error('Error fetching progress:', error);
+      return;
+    }
+
+    completedArticles = {};
+    data.forEach(row => {
+      completedArticles[row.article_id] = true;
+    });
+
+    renderTable();
+    updateDashboard();
+  }
+
+  window.toggleComplete = async function(articleId) {
+    if (!currentUser) {
+      alert('Please sign in to save your progress!');
+      renderTable();
+      return;
+    }
+
+    const isDone = !completedArticles[articleId];
+    completedArticles[articleId] = isDone;
+
+    if (isDone) {
+      const { error } = await supabase
+        .from('user_progress')
+        .insert({ user_id: currentUser.id, article_id: articleId });
+      if (error) console.error(error);
+    } else {
+      const { error } = await supabase
+        .from('user_progress')
+        .delete()
+        .eq('user_id', currentUser.id)
+        .eq('article_id', articleId);
+      if (error) console.error(error);
+    }
+
+    renderTable();
+    updateDashboard();
+  };
+
+  // 4. UI RENDER FUNCTIONS
   function populateFilters() {
     const specialties = [...new Set(articlesData.map(a => a.specialty))].sort();
     const select = document.getElementById('specialty-filter');
@@ -304,7 +454,6 @@
     });
   }
 
-  // Render Table
   function renderTable() {
     const tbody = document.getElementById('articles-table-body');
     tbody.innerHTML = '';
@@ -345,17 +494,7 @@
     });
   }
 
-  // Toggle completion
-  window.toggleComplete = function(id) {
-    completedArticles[id] = !completedArticles[id];
-    saveProgress();
-    renderTable();
-    updateDashboard();
-  };
-
-  // Update Dashboard Progress Bars
   function updateDashboard() {
-    // PGY-1 calculation
     const pgy1Articles = articlesData.filter(a => a.pgy.includes('Resident Year 1'));
     const pgy1Completed = pgy1Articles.filter(a => completedArticles[a.id]).length;
     const pgy1Pct = pgy1Articles.length > 0 ? Math.round((pgy1Completed / pgy1Articles.length) * 100) : 0;
@@ -364,7 +503,6 @@
     document.getElementById('pgy1-bar').style.width = `${pgy1Pct}%`;
     document.getElementById('pgy1-count').textContent = `${pgy1Completed} of ${pgy1Articles.length} completed`;
 
-    // Overall calculation
     const totalCompleted = articlesData.filter(a => completedArticles[a.id]).length;
     const overallPct = articlesData.length > 0 ? Math.round((totalCompleted / articlesData.length) * 100) : 0;
 
@@ -372,7 +510,6 @@
     document.getElementById('overall-bar').style.width = `${overallPct}%`;
     document.getElementById('overall-count').textContent = `${totalCompleted} of ${articlesData.length} completed`;
 
-    // Specialty Breakdown
     const specialtyGrid = document.getElementById('specialty-progress-grid');
     specialtyGrid.innerHTML = '';
 
@@ -394,13 +531,11 @@
     });
   }
 
-  // Event Listeners
   document.getElementById('specialty-filter').addEventListener('change', renderTable);
   document.getElementById('pgy-filter').addEventListener('change', renderTable);
   document.getElementById('difficulty-filter').addEventListener('change', renderTable);
   document.getElementById('search-input').addEventListener('input', renderTable);
 
-  // Initialize
   populateFilters();
   renderTable();
   updateDashboard();
